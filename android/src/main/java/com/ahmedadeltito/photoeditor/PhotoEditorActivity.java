@@ -330,7 +330,8 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
     }
 
     private void addText(String text, int colorCodeTextView, Drawable wrappedDrawable) {
-        photoEditorSDK.addText(text, colorCodeTextView,wrappedDrawable);
+        if (stringIsNotEmpty(text))
+            photoEditorSDK.addText(text, colorCodeTextView, wrappedDrawable);
     }
 
     private void clearAllViews() {
@@ -345,41 +346,43 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
         photoEditorSDK.brushEraser();
     }
 
-    private void openAddTextPopupWindow(String text, int colorCode, Drawable background) {
+    private void openAddTextPopupWindow(final String text, int colorCode, Drawable background) {
         colorCodeTextView = colorCode;
         LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View addTextPopupWindowRootView = inflater.inflate(R.layout.add_text_popup_window, null);
-        final EditText addTextEditText = (EditText) addTextPopupWindowRootView.findViewById(R.id.add_text_edit_text);
-        TextView addTextDoneTextView = (TextView) addTextPopupWindowRootView.findViewById(R.id.add_text_done_tv);
+        final EditText addTextEditText = addTextPopupWindowRootView.findViewById(R.id.add_text_edit_text);
+        TextView addTextDoneTextView = addTextPopupWindowRootView.findViewById(R.id.add_text_done_tv);
         View rootLayout = addTextPopupWindowRootView.findViewById(R.id.rootLayout);
-        RecyclerView addTextColorPickerRecyclerView = (RecyclerView) addTextPopupWindowRootView.findViewById(R.id.add_text_color_picker_recycler_view);
+        RecyclerView addTextColorPickerRecyclerView = addTextPopupWindowRootView.findViewById(R.id.add_text_color_picker_recycler_view);
         LinearLayoutManager layoutManager = new LinearLayoutManager(PhotoEditorActivity.this, LinearLayoutManager.HORIZONTAL, false);
         addTextColorPickerRecyclerView.setLayoutManager(layoutManager);
         addTextColorPickerRecyclerView.setHasFixedSize(true);
         ColorPickerAdapter colorPickerAdapter = new ColorPickerAdapter(PhotoEditorActivity.this, colorPickerColors);
-        colorPickerAdapter.setOnColorPickerClickListener(new ColorPickerAdapter.OnColorPickerClickListener() {
-            @Override
-            public void onColorPickerClickListener(int colorCode) {
-                addTextEditText.setTextColor(colorCode);
-                colorCodeTextView = colorCode;
-                if (colorCode != -1) {
-                    Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
-                    Drawable wrappedDrawable;
-                    if (unwrappedDrawable != null) {
-                        wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
-                        int pos = colorPickerColors.indexOf(colorCode);
-                        addTextEditText.setBackgroundDrawable(wrappedDrawable);
-                    }
+        colorPickerAdapter.setOnColorPickerClickListener(colorCode1 -> {
+            if (colorCode1 == -2) {
+                colorCodeTextView = getResources().getColor(R.color.black);
+            } else {
+                colorCodeTextView = -2;
+            }
+            addTextEditText.setTextColor(colorCodeTextView);
+            if (colorCode1 != -1) {
+                Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
+                Drawable wrappedDrawable;
+
+                if (unwrappedDrawable != null) {
+                    wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
+                    DrawableCompat.setTint(wrappedDrawable, colorCode1);
+                    addTextEditText.setBackgroundDrawable(wrappedDrawable);
                 }
             }
         });
         addTextColorPickerRecyclerView.setAdapter(colorPickerAdapter);
         if (stringIsNotEmpty(text)) {
             addTextEditText.setText(text);
-            if(background!=null){
+            if (background != null) {
                 addTextEditText.setBackgroundDrawable(background);
             }
-            addTextEditText.setTextColor(colorCode == -1 ? getResources().getColor(R.color.white) : colorCode);
+            addTextEditText.setTextColor(colorCode);
         }
         pop = new PopupWindow(PhotoEditorActivity.this);
         pop.setContentView(addTextPopupWindowRootView);
@@ -390,19 +393,12 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
         pop.showAtLocation(addTextPopupWindowRootView, Gravity.TOP, 0, 0);
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
-        addTextDoneTextView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
-                Drawable wrappedDrawable;
-                wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
-                DrawableCompat.setTint(wrappedDrawable, Color.WHITE);
-                addText(addTextEditText.getText().toString(), colorCodeTextView,wrappedDrawable);
-                InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
-                pop.dismiss();
-                pop = null;
-            }
+        addTextDoneTextView.setOnClickListener(view -> {
+            addText(addTextEditText.getText().toString(), colorCodeTextView, addTextEditText.getBackground());
+            InputMethodManager imm12 = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm12.hideSoftInputFromWindow(view.getWindowToken(), 0);
+            pop.dismiss();
+            pop = null;
         });
         addTextEditText.requestFocus();
         addTextEditText.addTextChangedListener(new TextWatcher() {
@@ -418,23 +414,24 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
 
             @Override
             public void afterTextChanged(Editable editable) {
-                String message = editable.toString();
-                ConstraintLayout.LayoutParams param = (ConstraintLayout.LayoutParams) addTextEditText.getLayoutParams();
-                Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
-                Drawable wrappedDrawable;
-                if (unwrappedDrawable != null) {
-                    wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
-                    if (message.length() > 0) {
-                        param.width = ConstraintLayout.LayoutParams.WRAP_CONTENT;
-                        DrawableCompat.setTint(wrappedDrawable, Color.WHITE);
-                    } else {
-                        param.width = 50;
-                        DrawableCompat.setTint(wrappedDrawable, Color.BLACK);
+                if (!stringIsNotEmpty(text)) {
+                    String message = editable.toString();
+                    ConstraintLayout.LayoutParams param = (ConstraintLayout.LayoutParams) addTextEditText.getLayoutParams();
+                    Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
+                    Drawable wrappedDrawable;
+                    if (unwrappedDrawable != null) {
+                        wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
+                        if (message.length() > 0) {
+                            param.width = ConstraintLayout.LayoutParams.WRAP_CONTENT;
+                            DrawableCompat.setTint(wrappedDrawable, Color.WHITE);
+                        } else {
+                            param.width = 50;
+                            DrawableCompat.setTint(wrappedDrawable, Color.BLACK);
+                        }
+                        addTextEditText.setLayoutParams(param);
+                        addTextEditText.setBackgroundDrawable(wrappedDrawable);
                     }
-                    addTextEditText.setLayoutParams(param);
-                    addTextEditText.setBackgroundDrawable(wrappedDrawable);
                 }
-
             }
         });
         rootLayout.setOnClickListener(view -> {
@@ -462,7 +459,12 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
             drawingViewColorPickerRecyclerView.setLayoutManager(layoutManager);
             drawingViewColorPickerRecyclerView.setHasFixedSize(true);
             ColorPickerAdapter colorPickerAdapter = new ColorPickerAdapter(PhotoEditorActivity.this, colorPickerColors);
-            colorPickerAdapter.setOnColorPickerClickListener(colorCode -> photoEditorSDK.setBrushColor(colorCode));
+            colorPickerAdapter.setOnColorPickerClickListener(new ColorPickerAdapter.OnColorPickerClickListener() {
+                @Override
+                public void onColorPickerClickListener(int colorCode) {
+                    photoEditorSDK.setBrushColor(colorCode);
+                }
+            });
             drawingViewColorPickerRecyclerView.setAdapter(colorPickerAdapter);
         } else {
             updateView(View.VISIBLE);
@@ -643,7 +645,7 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
             System.out.println("CROP IMAGE DUD");
             startCropping();
         } else if (v.getId() == R.id.add_text_tv) {
-            openAddTextPopupWindow("", -1,null);
+            openAddTextPopupWindow("", -1, null);
         } else if (v.getId() == R.id.add_pencil_tv) {
             updateBrushDrawingView(true);
         } else if (v.getId() == R.id.done_drawing_tv) {
@@ -662,8 +664,8 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
     }
 
     @Override
-    public void onEditTextChangeListener(String text, int colorCode,Drawable background) {
-        openAddTextPopupWindow(text, colorCode,background);
+    public void onEditTextChangeListener(String text, int colorCode, Drawable background) {
+        openAddTextPopupWindow(text, colorCode, background);
     }
 
     @Override
@@ -971,7 +973,7 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
     @Override
     protected void onStop() {
         super.onStop();
-        if(pop!= null){
+        if (pop != null) {
             pop.dismiss();
         }
     }
