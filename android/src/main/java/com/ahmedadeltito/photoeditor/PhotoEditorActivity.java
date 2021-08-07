@@ -7,12 +7,14 @@ import android.content.ContentUris;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.res.Resources;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -20,21 +22,13 @@ import android.os.CountDownTimer;
 import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
-import androidx.annotation.NonNull;
-import androidx.exifinterface.media.ExifInterface;
-import androidx.core.app.ActivityCompat;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
-import androidx.fragment.app.FragmentStatePagerAdapter;
-import androidx.core.content.PermissionChecker;
-import androidx.viewpager.widget.ViewPager;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -43,14 +37,30 @@ import android.widget.PopupWindow;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.content.res.AppCompatResources;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.PermissionChecker;
+import androidx.core.graphics.drawable.DrawableCompat;
+import androidx.exifinterface.media.ExifInterface;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentStatePagerAdapter;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.viewpager.widget.ViewPager;
+
+import com.ahmedadeltito.photoeditor.photo_editor.BrushDrawingView;
+import com.ahmedadeltito.photoeditor.photo_editor.OnPhotoEditorSDKListener;
+import com.ahmedadeltito.photoeditor.photo_editor.PhotoEditorSDK;
+import com.ahmedadeltito.photoeditor.photo_editor.ViewType;
 import com.ahmedadeltito.photoeditor.widget.SlidingUpPanelLayout;
-import com.ahmedadeltito.photoeditorsdk.BrushDrawingView;
-import com.ahmedadeltito.photoeditorsdk.OnPhotoEditorSDKListener;
-import com.ahmedadeltito.photoeditorsdk.PhotoEditorSDK;
-import com.ahmedadeltito.photoeditorsdk.ViewType;
 import com.viewpagerindicator.PageIndicator;
+import com.yalantis.ucrop.UCrop;
+import com.yalantis.ucrop.UCropActivity;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -60,12 +70,8 @@ import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-
 import java.util.List;
 import java.util.UUID;
-
-import com.yalantis.ucrop.UCrop;
-import com.yalantis.ucrop.UCropActivity;
 
 import ui.photoeditor.R;
 
@@ -87,9 +93,11 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
     private RelativeLayout bottomShadowRelativeLayout;
     private ArrayList<Integer> colorPickerColors;
     private int colorCodeTextView = -1;
+    private int colorCodeBGView = -1;
     private PhotoEditorSDK photoEditorSDK;
     private String selectedImagePath;
     private int imageOrientation;
+    private Activity activity;
 
     // CROP OPTION
     private boolean cropperCircleOverlay = false;
@@ -98,16 +106,17 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
     private boolean hideBottomControls = false;
 
     private ImageView photoEditImageView;
+    private PopupWindow pop;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_photo_editor);
-
+        activity = this;
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
 
-        selectedImagePath = getIntent().getExtras().getString("selectedImagePath");	
+        selectedImagePath = getIntent().getExtras().getString("selectedImagePath");
         if (selectedImagePath.contains("content://")) {
             selectedImagePath = getPath(Uri.parse(selectedImagePath));
         }
@@ -275,7 +284,7 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
         }.start();
 
         ArrayList hiddenControls = (ArrayList<Integer>) getIntent().getExtras().getSerializable("hiddenControls");
-        for (int i = 0;i < hiddenControls.size();i++) {
+        for (int i = 0; i < hiddenControls.size(); i++) {
             if (hiddenControls.get(i).toString().equalsIgnoreCase("text")) {
                 addTextView.setVisibility(View.INVISIBLE);
             }
@@ -320,8 +329,8 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
             mLayout.setPanelState(SlidingUpPanelLayout.PanelState.COLLAPSED);
     }
 
-    private void addText(String text, int colorCodeTextView) {
-        photoEditorSDK.addText(text, colorCodeTextView);
+    private void addText(String text, int colorCodeTextView, Drawable wrappedDrawable) {
+        photoEditorSDK.addText(text, colorCodeTextView,wrappedDrawable);
     }
 
     private void clearAllViews() {
@@ -336,12 +345,13 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
         photoEditorSDK.brushEraser();
     }
 
-    private void openAddTextPopupWindow(String text, int colorCode) {
+    private void openAddTextPopupWindow(String text, int colorCode, Drawable background) {
         colorCodeTextView = colorCode;
         LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View addTextPopupWindowRootView = inflater.inflate(R.layout.add_text_popup_window, null);
         final EditText addTextEditText = (EditText) addTextPopupWindowRootView.findViewById(R.id.add_text_edit_text);
         TextView addTextDoneTextView = (TextView) addTextPopupWindowRootView.findViewById(R.id.add_text_done_tv);
+        View rootLayout = addTextPopupWindowRootView.findViewById(R.id.rootLayout);
         RecyclerView addTextColorPickerRecyclerView = (RecyclerView) addTextPopupWindowRootView.findViewById(R.id.add_text_color_picker_recycler_view);
         LinearLayoutManager layoutManager = new LinearLayoutManager(PhotoEditorActivity.this, LinearLayoutManager.HORIZONTAL, false);
         addTextColorPickerRecyclerView.setLayoutManager(layoutManager);
@@ -352,14 +362,26 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
             public void onColorPickerClickListener(int colorCode) {
                 addTextEditText.setTextColor(colorCode);
                 colorCodeTextView = colorCode;
+                if (colorCode != -1) {
+                    Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
+                    Drawable wrappedDrawable;
+                    if (unwrappedDrawable != null) {
+                        wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
+                        int pos = colorPickerColors.indexOf(colorCode);
+                        addTextEditText.setBackgroundDrawable(wrappedDrawable);
+                    }
+                }
             }
         });
         addTextColorPickerRecyclerView.setAdapter(colorPickerAdapter);
         if (stringIsNotEmpty(text)) {
             addTextEditText.setText(text);
+            if(background!=null){
+                addTextEditText.setBackgroundDrawable(background);
+            }
             addTextEditText.setTextColor(colorCode == -1 ? getResources().getColor(R.color.white) : colorCode);
         }
-        final PopupWindow pop = new PopupWindow(PhotoEditorActivity.this);
+        pop = new PopupWindow(PhotoEditorActivity.this);
         pop.setContentView(addTextPopupWindowRootView);
         pop.setWidth(LinearLayout.LayoutParams.MATCH_PARENT);
         pop.setHeight(LinearLayout.LayoutParams.MATCH_PARENT);
@@ -371,11 +393,54 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
         addTextDoneTextView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                addText(addTextEditText.getText().toString(), colorCodeTextView);
+                Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
+                Drawable wrappedDrawable;
+                wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
+                DrawableCompat.setTint(wrappedDrawable, Color.WHITE);
+                addText(addTextEditText.getText().toString(), colorCodeTextView,wrappedDrawable);
                 InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                 imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
                 pop.dismiss();
+                pop = null;
             }
+        });
+        addTextEditText.requestFocus();
+        addTextEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+                String message = editable.toString();
+                ConstraintLayout.LayoutParams param = (ConstraintLayout.LayoutParams) addTextEditText.getLayoutParams();
+                Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
+                Drawable wrappedDrawable;
+                if (unwrappedDrawable != null) {
+                    wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
+                    if (message.length() > 0) {
+                        param.width = ConstraintLayout.LayoutParams.WRAP_CONTENT;
+                        DrawableCompat.setTint(wrappedDrawable, Color.WHITE);
+                    } else {
+                        param.width = 50;
+                        DrawableCompat.setTint(wrappedDrawable, Color.BLACK);
+                    }
+                    addTextEditText.setLayoutParams(param);
+                    addTextEditText.setBackgroundDrawable(wrappedDrawable);
+                }
+
+            }
+        });
+        rootLayout.setOnClickListener(view -> {
+            InputMethodManager imm1 = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm1.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
+            addTextEditText.requestFocus();
         });
     }
 
@@ -397,12 +462,7 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
             drawingViewColorPickerRecyclerView.setLayoutManager(layoutManager);
             drawingViewColorPickerRecyclerView.setHasFixedSize(true);
             ColorPickerAdapter colorPickerAdapter = new ColorPickerAdapter(PhotoEditorActivity.this, colorPickerColors);
-            colorPickerAdapter.setOnColorPickerClickListener(new ColorPickerAdapter.OnColorPickerClickListener() {
-                @Override
-                public void onColorPickerClickListener(int colorCode) {
-                    photoEditorSDK.setBrushColor(colorCode);
-                }
-            });
+            colorPickerAdapter.setOnColorPickerClickListener(colorCode -> photoEditorSDK.setBrushColor(colorCode));
             drawingViewColorPickerRecyclerView.setAdapter(colorPickerAdapter);
         } else {
             updateView(View.VISIBLE);
@@ -495,8 +555,8 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
                 String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
                 String imageName = "/IMG_" + timeStamp + ".jpg";
 
-                 String selectedImagePath = getIntent().getExtras().getString("selectedImagePath");
-                 File file = new File(selectedImagePath);
+                String selectedImagePath = getIntent().getExtras().getString("selectedImagePath");
+                File file = new File(selectedImagePath);
 //                String newPath = getCacheDir() + imageName;
 //	            File file = new File(newPath);
 
@@ -579,11 +639,11 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
             onBackPressed();
         } else if (v.getId() == R.id.add_image_emoji_tv) {
             mLayout.setPanelState(SlidingUpPanelLayout.PanelState.EXPANDED);
-        } else if(v.getId() == R.id.add_crop_tv) {
+        } else if (v.getId() == R.id.add_crop_tv) {
             System.out.println("CROP IMAGE DUD");
             startCropping();
         } else if (v.getId() == R.id.add_text_tv) {
-            openAddTextPopupWindow("", -1);
+            openAddTextPopupWindow("", -1,null);
         } else if (v.getId() == R.id.add_pencil_tv) {
             updateBrushDrawingView(true);
         } else if (v.getId() == R.id.done_drawing_tv) {
@@ -602,8 +662,8 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
     }
 
     @Override
-    public void onEditTextChangeListener(String text, int colorCode) {
-        openAddTextPopupWindow(text, colorCode);
+    public void onEditTextChangeListener(String text, int colorCode,Drawable background) {
+        openAddTextPopupWindow(text, colorCode,background);
     }
 
     @Override
@@ -695,26 +755,23 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
         }
     }
 
-    private Typeface getFontFromRes(int resource)
-    {
+    private Typeface getFontFromRes(int resource) {
         Typeface tf = null;
         InputStream is = null;
         try {
             is = getResources().openRawResource(resource);
-        }
-        catch(Resources.NotFoundException e) {
+        } catch (Resources.NotFoundException e) {
             Log.e(TAG, "Could not find font in resources!");
         }
 
         String outPath = getCacheDir() + "/tmp" + System.currentTimeMillis() + ".raw";
 
-        try
-        {
+        try {
             byte[] buffer = new byte[is.available()];
             BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(outPath));
 
             int l = 0;
-            while((l = is.read(buffer)) > 0)
+            while ((l = is.read(buffer)) > 0)
                 bos.write(buffer, 0, l);
 
             bos.close();
@@ -723,9 +780,7 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
 
             // clean up
             new File(outPath).delete();
-        }
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             Log.e(TAG, "Error reading in font!");
             return null;
         }
@@ -775,7 +830,7 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
                 if (resultUri != null) {
                     try {
                         selectedImagePath = resultUri.toString();
-                        Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver() , resultUri);
+                        Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), resultUri);
                         photoEditImageView.setImageBitmap(bitmap);
                     } catch (Exception ex) {
                         System.out.println("NO IMAGE DATA FOUND");
@@ -788,6 +843,7 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
             }
         }
     }
+
     @TargetApi(Build.VERSION_CODES.KITKAT)
     protected String getPath(final Uri uri) {
         // DocumentProvider
@@ -909,6 +965,14 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
         } catch (OutOfMemoryError e) {
             e.printStackTrace();
             return null;
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if(pop!= null){
+            pop.dismiss();
         }
     }
 }
