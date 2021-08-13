@@ -345,9 +345,10 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
     private void eraseDrawing() {
         photoEditorSDK.brushEraser();
     }
-
-    private void openAddTextPopupWindow(final String text, int colorCode, Drawable background) {
+    Drawable selectedBackGround;
+    private void openAddTextPopupWindow(final String text, int colorCode, final Drawable background) {
         colorCodeTextView = colorCode;
+        selectedBackGround = background;
         LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View addTextPopupWindowRootView = inflater.inflate(R.layout.add_text_popup_window, null);
         final EditText addTextEditText = addTextPopupWindowRootView.findViewById(R.id.add_text_edit_text);
@@ -374,6 +375,7 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
                     if (unwrappedDrawable != null) {
                         wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
                         DrawableCompat.setTint(wrappedDrawable, colorCode1);
+                        selectedBackGround = wrappedDrawable;
                         addTextEditText.setBackgroundDrawable(wrappedDrawable);
                     }
                 }
@@ -422,22 +424,25 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
             public void afterTextChanged(Editable editable) {
                 if (!stringIsNotEmpty(text)) {
                     String message = editable.toString();
-                    if (message.length() <= 2) {
-                        ConstraintLayout.LayoutParams param = (ConstraintLayout.LayoutParams) addTextEditText.getLayoutParams();
-                        Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
-                        Drawable wrappedDrawable;
-                        if (unwrappedDrawable != null) {
-                            wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
-                            if (message.length()>0) {
-                                param.width = ConstraintLayout.LayoutParams.WRAP_CONTENT;
-                                DrawableCompat.setTint(wrappedDrawable, Color.WHITE);
-                            } else {
-                                param.width = 50;
-                                DrawableCompat.setTint(wrappedDrawable, Color.BLACK);
-                            }
-                            addTextEditText.setLayoutParams(param);
+                    ConstraintLayout.LayoutParams param = (ConstraintLayout.LayoutParams) addTextEditText.getLayoutParams();
+                    Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
+                    Drawable wrappedDrawable;
+                    if (unwrappedDrawable != null) {
+                        wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
+                        if (message.length() == 1) {
+                            param.width = ConstraintLayout.LayoutParams.WRAP_CONTENT;
+                            DrawableCompat.setTint(wrappedDrawable, Color.WHITE);
+                        } else if (message.length() == 0) {
+                            param.width = 50;
+                            DrawableCompat.setTint(wrappedDrawable, Color.BLACK);
+                        }
+                        addTextEditText.setLayoutParams(param);
+                        if (selectedBackGround != null) {
+                            addTextEditText.setBackgroundDrawable(selectedBackGround);
+                        } else {
                             addTextEditText.setBackgroundDrawable(wrappedDrawable);
                         }
+
                     }
                 }
             }
