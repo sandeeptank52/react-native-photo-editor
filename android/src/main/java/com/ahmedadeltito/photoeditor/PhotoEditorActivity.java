@@ -422,20 +422,22 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
             public void afterTextChanged(Editable editable) {
                 if (!stringIsNotEmpty(text)) {
                     String message = editable.toString();
-                    ConstraintLayout.LayoutParams param = (ConstraintLayout.LayoutParams) addTextEditText.getLayoutParams();
-                    Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
-                    Drawable wrappedDrawable;
-                    if (unwrappedDrawable != null) {
-                        wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
-                        if (message.length() > 0) {
-                            param.width = ConstraintLayout.LayoutParams.WRAP_CONTENT;
-                            DrawableCompat.setTint(wrappedDrawable, Color.WHITE);
-                        } else {
-                            param.width = 50;
-                            DrawableCompat.setTint(wrappedDrawable, Color.BLACK);
+                    if (message.length() <= 2) {
+                        ConstraintLayout.LayoutParams param = (ConstraintLayout.LayoutParams) addTextEditText.getLayoutParams();
+                        Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
+                        Drawable wrappedDrawable;
+                        if (unwrappedDrawable != null) {
+                            wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
+                            if (message.length()>0) {
+                                param.width = ConstraintLayout.LayoutParams.WRAP_CONTENT;
+                                DrawableCompat.setTint(wrappedDrawable, Color.WHITE);
+                            } else {
+                                param.width = 50;
+                                DrawableCompat.setTint(wrappedDrawable, Color.BLACK);
+                            }
+                            addTextEditText.setLayoutParams(param);
+                            addTextEditText.setBackgroundDrawable(wrappedDrawable);
                         }
-                        addTextEditText.setLayoutParams(param);
-                        addTextEditText.setBackgroundDrawable(wrappedDrawable);
                     }
                 }
             }
