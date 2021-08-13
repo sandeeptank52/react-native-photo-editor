@@ -358,21 +358,24 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
         addTextColorPickerRecyclerView.setLayoutManager(layoutManager);
         addTextColorPickerRecyclerView.setHasFixedSize(true);
         ColorPickerAdapter colorPickerAdapter = new ColorPickerAdapter(PhotoEditorActivity.this, colorPickerColors);
-        colorPickerAdapter.setOnColorPickerClickListener(colorCode1 -> {
-            if (colorCode1 == -2) {
-                colorCodeTextView = getResources().getColor(R.color.black);
-            } else {
-                colorCodeTextView = -2;
-            }
-            addTextEditText.setTextColor(colorCodeTextView);
-            if (colorCode1 != -1) {
-                Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
-                Drawable wrappedDrawable;
+        colorPickerAdapter.setOnColorPickerClickListener(new ColorPickerAdapter.OnColorPickerClickListener() {
+            @Override
+            public void onColorPickerClickListener(int colorCode1) {
+                if (colorCode1 == -2) {
+                    colorCodeTextView = getResources().getColor(R.color.black);
+                } else {
+                    colorCodeTextView = -2;
+                }
+                addTextEditText.setTextColor(colorCodeTextView);
+                if (colorCode1 != -1) {
+                    Drawable unwrappedDrawable = AppCompatResources.getDrawable(activity, R.drawable.edit_text_background);
+                    Drawable wrappedDrawable;
 
-                if (unwrappedDrawable != null) {
-                    wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
-                    DrawableCompat.setTint(wrappedDrawable, colorCode1);
-                    addTextEditText.setBackgroundDrawable(wrappedDrawable);
+                    if (unwrappedDrawable != null) {
+                        wrappedDrawable = DrawableCompat.wrap(unwrappedDrawable);
+                        DrawableCompat.setTint(wrappedDrawable, colorCode1);
+                        addTextEditText.setBackgroundDrawable(wrappedDrawable);
+                    }
                 }
             }
         });
@@ -393,12 +396,15 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
         pop.showAtLocation(addTextPopupWindowRootView, Gravity.TOP, 0, 0);
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
-        addTextDoneTextView.setOnClickListener(view -> {
-            addText(addTextEditText.getText().toString(), colorCodeTextView, addTextEditText.getBackground());
-            InputMethodManager imm12 = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            imm12.hideSoftInputFromWindow(view.getWindowToken(), 0);
-            pop.dismiss();
-            pop = null;
+        addTextDoneTextView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                addText(addTextEditText.getText().toString(), colorCodeTextView, addTextEditText.getBackground());
+                InputMethodManager imm12 = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                imm12.hideSoftInputFromWindow(view.getWindowToken(), 0);
+                pop.dismiss();
+                pop = null;
+            }
         });
         addTextEditText.requestFocus();
         addTextEditText.addTextChangedListener(new TextWatcher() {
@@ -434,10 +440,13 @@ public class PhotoEditorActivity extends AppCompatActivity implements View.OnCli
                 }
             }
         });
-        rootLayout.setOnClickListener(view -> {
-            InputMethodManager imm1 = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            imm1.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
-            addTextEditText.requestFocus();
+        rootLayout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                InputMethodManager imm1 = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                imm1.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
+                addTextEditText.requestFocus();
+            }
         });
     }
 
